@@ -6,3 +6,4 @@ Gemfile.lock
 .jekyll-cache
 *~
 *__pycache__*
+datasets_ucr/

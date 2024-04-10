@@ -16,6 +16,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.random_projection import GaussianRandomProjection
 from sklearn.preprocessing import normalize
+from aeon.datasets import load_from_tsv_file
+from aeon.transformations.collection.dictionary_based import SAX
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -30,6 +32,9 @@ EOS = "</s>"
 SEP = "<sep>"
 PAD = "<pad>"
 UNK = "<unk>"
+
+# todo put directory somewhere else?
+ts_data_dir = Path(__file__).resolve().parent.parent.parent / "datasets_ucr"
 
 
 def make_induction(
@@ -468,6 +473,54 @@ def get_conll_ner(
     )
 
 
+def get_ts_classification_dataset(
+        name,
+        unk=True,
+        n_segments=16,
+        alphabet_size=8,
+        get_val=True
+):
+    """ Method implemented for UCR time series dataset """
+    dfs = {}
+    for split in ['train', 'test']:
+        # Load dataset
+        path = ts_data_dir / f"{name}/{name}_{split.upper()}.tsv"
+        X, y = load_from_tsv_file(str(path))
+
+        # Compute SAX symbols
+        sax = SAX(n_segments=n_segments, alphabet_size=alphabet_size)
+        X = sax.fit_transform(X).squeeze().tolist()     # X is an array of time series samples converted to sax symbols
+
+        # Turn elements in X to string, add BOS and EOS tags for each sample
+        X = [[BOS] + list(map(str, sample)) + [EOS] for sample in X]
+
+        # Turn labels to string, reshape array and add padding
+        y = y.reshape(len(y), 1).astype('str').tolist()
+        y = [y_i + [PAD] * (len(X[-1]) - 1) for y_i in y]
+
+        df = pd.DataFrame({'sent': X, 'tags': y})
+        dfs[split] = df.reset_index(drop=True)
+
+    if get_val:
+        train, val = train_test_split(dfs['train'], test_size=0.1, random_state=42, shuffle=True)
+        dfs['train'] = train.reset_index(drop=True)
+        dfs['val'] = val.reset_index(drop=True)
+        return (
+            dfs['train'],
+            dfs['test'],
+            dfs['val'],
+            *prepare_dataset(
+                dfs['train'], dfs['test'], val=dfs['val'], unk=unk
+            ),
+        )
+    else:
+        return (
+            dfs['train'],
+            dfs['test'],
+            *prepare_dataset(dfs['train'], dfs['test'], unk=unk),
+        )
+
+
 def get_classification_dataset(
     name,
     vocab_size,
@@ -522,7 +575,7 @@ def get_classification_dataset(
             else:
                 y = str(_y)
             wds = word_tokenize(s)
-            if f(wds):
+            if f(wds):  # if tokenized sentence has acceptable number of tokens
                 sents.append(
                     [BOS] + [w.lower() if do_lower else w for w in wds] + [EOS]
                 )
@@ -575,6 +628,10 @@ def get_dataset(
     replace_numbers=False,
     unique=False,
 ):
+    ts_data = sorted([x.name for x in Path(ts_data_dir).glob('*') if x.name != '.DS_Store'])
+
+    if name in ts_data:
+        return get_ts_classification_dataset(name)
     if name.startswith("conll"):
         return get_conll_ner(
             name,

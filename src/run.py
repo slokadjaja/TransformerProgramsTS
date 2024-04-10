@@ -97,7 +97,7 @@ def parse_args():
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--save_code", action="store_true")
 
-    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--device", type=str, default="cpu")
 
     args = parser.parse_args()
 
@@ -209,10 +209,10 @@ def run_training(
             loss.backward()
             if torch.isnan(loss):
                 m = torch.isnan(losses_lst[-1])
-                print(losses_lst[-1])
-                print(m.nonzero())
-                print(log_probs[m])
-                print(x[m], tgts[m])
+                # print(losses_lst[-1])
+                # print(m.nonzero())
+                # print(log_probs[m])
+                # print(x[m], tgts[m])
                 raise ValueError("loss is nan")
             if max_grad_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
@@ -321,7 +321,11 @@ def run_test(
     preds = np.concatenate(preds, 0)
     true = np.concatenate(true, 0)
     m = true != y_pad_idx
+    # print(f'm: {m}')
+    # print(f'preds: {preds}')
+    # print(f'true: {true}')
     acc = (preds == true)[m].mean()
+    # todo implement f1 score
     metrics = {}
     if o_idx is not None:
         y_true = [idx_t[y[y != y_pad_idx]].tolist() for y in true]

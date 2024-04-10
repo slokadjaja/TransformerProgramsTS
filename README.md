@@ -29,8 +29,18 @@ wget https://huggingface.co/stanfordnlp/glove/resolve/main/glove.840B.300d.zip -
 unzip data/glove.840B.300d.zip
 ```
 
-## Learning Programs
+## Time Series
 
+It is possible to train a Transformer Program using time series data from the [UCR dataset](https://www.cs.ucr.edu/%7Eeamonn/time_series_data_2018/). To do this,
+download the dataset from the link, extract the folder and place the individual datasets in a folder called ```datasets_ucr``` in the root directory.
+
+Start the training process by running 
+
+```python -m src.run --dataset [Dataset_Name] --n_epochs [Number_of_Epochs] ```
+
+Change the dataset name and number of epochs accordingly. A complete list of parameters can be found in ```src/run.py```
+
+## Learning Programs
 ### Training
 
 The code to learn a Transformer Program can be found in [src/run.py](src/run.py).
