@@ -40,6 +40,7 @@ Start the training process by running
 
 Change the dataset name and number of epochs accordingly. A complete list of parameters can be found in ```src/run.py```
 
+To plot categorical attention weights and save generated code, provide the parameter ```--save_code```
 ## Learning Programs
 ### Training
 
