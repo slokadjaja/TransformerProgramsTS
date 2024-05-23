@@ -17,6 +17,7 @@ from torch.nn import functional as F
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix, f1_score
 
 from src.models.transformers import Transformer
 from src.models.programs import (
@@ -321,11 +322,13 @@ def run_test(
     preds = np.concatenate(preds, 0)
     true = np.concatenate(true, 0)
     m = true != y_pad_idx
-    # print(f'm: {m}')
-    # print(f'preds: {preds}')
-    # print(f'true: {true}')
     acc = (preds == true)[m].mean()
-    # todo implement f1 score
+
+    preds_1d = preds[m]
+    true_1d = true[m]
+    conf_mat = confusion_matrix(true_1d, preds_1d)
+    f1 = f1_score(true_1d, preds_1d, average='macro')
+
     metrics = {}
     if o_idx is not None:
         y_true = [idx_t[y[y != y_pad_idx]].tolist() for y in true]
@@ -335,6 +338,8 @@ def run_test(
         ]
         metrics = metric_utils.conll_score(y_true=y_true, y_pred=y_pred)
     loss = np.concatenate(out, 0).mean()
+    metrics["confusion_matrix"] = conf_mat
+    metrics["f1_score"] = f1
     if return_preds:
         return loss, acc, metrics, preds, true
     return loss, acc, metrics
@@ -464,7 +469,10 @@ def run_program(
             }
         )
         for k, v in metrics.items():
-            df[k] = v
+            if isinstance(v, np.ndarray):
+                df[k] = np.array2string(v)
+            else:
+                df[k] = v
         dfs.append(df)
     df = pd.concat(dfs).reset_index(drop=True)
 

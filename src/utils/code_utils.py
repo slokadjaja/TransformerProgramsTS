@@ -6,15 +6,10 @@ from pathlib import Path
 import re
 
 from black import format_str, FileMode
-import einops
 import numpy as np
 import pandas as pd
-from pprint import pprint, pformat
 import torch
-from torch import nn
-from torch.nn import functional as F
-from torch.optim import Adam
-from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 
 
 def embed_to_code(emb, idx_w, one_hot=True, var_types=None):
@@ -151,6 +146,64 @@ def get_var_types(model, idx_w, cat_var_names=None, one_hot=False, enums=True):
     return d
 
 
+def visualize_attention(
+        model,
+        cat_var_names=None,
+        head=0,
+        layer=0,
+        idx_w=None,
+        one_hot=False,
+        var_types=None,
+):
+    if cat_var_names is None:
+        cat_var_names, num_var_names, all_var_names = get_var_names(
+            model, idx_w=idx_w, one_hot=one_hot
+        )
+
+    attn = model.blocks[layer].cat_attn
+    W_pred = attn.W_pred.get_W().detach().cpu().numpy()
+    pi_K, pi_Q, pi_V = [
+        f.get_W().detach().cpu() for f in (attn.W_K, attn.W_Q, attn.W_V)
+    ]
+    key_names = cat_var_names[pi_K.argmax(-1)]
+    query_names = cat_var_names[pi_Q.argmax(-1)]
+    val_names = cat_var_names[pi_V.argmax(-1)]
+    n_heads = pi_K.shape[0]
+    if n_heads == 1:
+        key_names, query_names, val_names = (
+            [key_names],
+            [query_names],
+            [val_names],
+        )
+    h = head
+    q, k, v = query_names[h], key_names[h], val_names[h]
+    q_name, k_name = f"{q[:-1]}", f"{k[:-1]}"
+    if q_name == k_name:
+        q_name, k_name = f"q_{q_name}", f"k_{k_name}"
+
+    W_pred = W_pred[h]
+
+    if var_types is not None and q in var_types:
+        y_ticks = var_types[q]
+    else:
+        y_ticks = list(range(len(W_pred)))
+
+    if var_types is not None and k in var_types:
+        x_ticks = var_types[k]
+    else:
+        x_ticks = list(range(len(W_pred[0])))
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(W_pred)
+    ax.set_title(f"Layer: {layer}, Head: {h}")
+    ax.set_xlabel(k_name)
+    ax.set_ylabel(q_name)
+    ax.set_xticks(np.arange(len(x_ticks)), labels=x_ticks)
+    ax.set_yticks(np.arange(len(y_ticks)), labels=y_ticks)
+
+    plt.show()
+
+
 def cat_head_to_code(
     model,
     cat_var_names=None,
@@ -188,9 +241,11 @@ def cat_head_to_code(
         )
     h = head
     q, k, v = query_names[h], key_names[h], val_names[h]
+
     W_pred = W_pred[h]
     header = []
     q_name, k_name = f"{q[:-1]}", f"{k[:-1]}"
+
     if q_name == k_name:
         q_name, k_name = f"q_{q_name}", f"k_{k_name}"
     header.append(f"def predicate_{layer}_{head}({q_name}, {k_name}):")
@@ -209,6 +264,7 @@ def cat_head_to_code(
         stmt = f"\treturn {k_name} == {k_j}"
         if not compress:
             stmt = f"{stmt}  # {q_i}"
+
         stmts[stmt].append(q_i)
     for i, (stmt, q_is) in enumerate(stmts.items()):
         cond = "if" if i == 0 else "elif"
@@ -839,8 +895,17 @@ def model_to_code(
         ).split("\n")
     n_heads = model.blocks[0].cat_attn.W_K.n_heads
     n_layers = len(model.blocks)
+    n_heads_cat = model.blocks[0].n_heads_cat
     for l in range(n_layers):
-        for h in range(model.blocks[0].n_heads_cat):
+        for h in range(n_heads_cat):
+            visualize_attention(
+                model,
+                layer=l,
+                head=h,
+                idx_w=idx_w if one_hot else None,
+                var_types=var_types,
+                one_hot=one_hot
+            )
             lines += [f"# attn_{l}_{h} " + "#" * 52]
             lines += cat_head_to_code(
                 model,
