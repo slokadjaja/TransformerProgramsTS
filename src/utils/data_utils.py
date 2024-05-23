@@ -477,7 +477,7 @@ def get_ts_classification_dataset(
         name,
         unk=True,
         n_segments=16,
-        alphabet_size=8,
+        vocab_size=8,
         get_val=True
 ):
     """ Method implemented for UCR time series dataset """
@@ -488,7 +488,7 @@ def get_ts_classification_dataset(
         X, y = load_from_tsv_file(str(path))
 
         # Compute SAX symbols
-        sax = SAX(n_segments=n_segments, alphabet_size=alphabet_size)
+        sax = SAX(n_segments=n_segments, alphabet_size=vocab_size)
         X = sax.fit_transform(X).squeeze().tolist()     # X is an array of time series samples converted to sax symbols
 
         # Turn elements in X to string, add BOS and EOS tags for each sample
@@ -631,7 +631,7 @@ def get_dataset(
     ts_data = sorted([x.name for x in Path(ts_data_dir).glob('*') if x.name != '.DS_Store'])
 
     if name in ts_data:
-        return get_ts_classification_dataset(name)
+        return get_ts_classification_dataset(name, vocab_size)
     if name.startswith("conll"):
         return get_conll_ner(
             name,

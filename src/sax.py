@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from aeon.transformations.collection.dictionary_based import SAX
 from aeon.datasets import load_from_tsv_file
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import f1_score, accuracy_score
+from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from pathlib import Path
 import seaborn as sns
 
@@ -70,6 +70,8 @@ def main():
     y_pred = clf.predict(X_test_sax)
     f1 = f1_score(y_test, y_pred, average='macro')
     acc = accuracy_score(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred)
+    print(f"confusion matrix: {cm}")
     print(f"F1 score: {f1:.2f}")
     print(f"Accuracy: {acc:.2f}")
 
