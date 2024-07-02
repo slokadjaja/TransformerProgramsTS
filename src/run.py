@@ -1,3 +1,7 @@
+# python -m src.run --dataset ArrowHead --n_epochs 400 --n_heads_cat 2 --n_layers 4
+# python -m src.run --dataset ArrowHead --n_epochs 4 --save_code
+        # --one_hot_embed
+
 import argparse
 import copy
 from copy import deepcopy
@@ -498,6 +502,7 @@ def run_program(
                 output_dir=args.output_dir,
                 name=args.dataset,
                 example=x,
+                examples=X_val[0]
             )
         except Exception as e:
             logger.error(f"error saving code: {e}")

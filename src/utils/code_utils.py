@@ -204,6 +204,30 @@ def visualize_attention(
     plt.show()
 
 
+def visualize_residual(
+        model, example
+):
+    print(example)
+    x = torch.tensor(np.expand_dims(example, axis=0), dtype=torch.int64)
+    x = x.to(model.device)
+    x_pad_idx = 0
+    m = (x != x_pad_idx).float()
+    mask = (m.unsqueeze(-1) @ m.unsqueeze(-2)).bool()
+
+    model.eval()
+    with torch.no_grad():
+        x_cat = model.embed(x)
+        x_num = model.num_embed(x)
+        x_cat = torch.cat([x_cat, model.pos_embed(x_cat)], -1)
+        for block in model.blocks:
+            x_cat, x_num = block(x_cat, x_num, mask=mask)
+
+    arr = x_cat.detach().cpu().numpy().squeeze().T
+    print(arr.shape)
+    fig, ax = plt.subplots()
+    im = ax.imshow(arr)
+
+
 def cat_head_to_code(
     model,
     cat_var_names=None,
@@ -896,6 +920,9 @@ def model_to_code(
     n_heads = model.blocks[0].cat_attn.W_K.n_heads
     n_layers = len(model.blocks)
     n_heads_cat = model.blocks[0].n_heads_cat
+
+    visualize_residual(model, examples)
+
     for l in range(n_layers):
         for h in range(n_heads_cat):
             visualize_attention(
