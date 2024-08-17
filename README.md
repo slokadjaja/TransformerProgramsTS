@@ -32,15 +32,23 @@ unzip data/glove.840B.300d.zip
 ## Time Series
 
 It is possible to train a Transformer Program using time series data from the [UCR dataset](https://www.cs.ucr.edu/%7Eeamonn/time_series_data_2018/). To do this,
-download the dataset from the link, extract the folder and place the individual datasets in a folder called ```datasets_ucr``` in the root directory.
+please download the dataset from the link, extract the folder and place the individual datasets in a folder called ```datasets_ucr``` in the root directory.
 
 Start the training process by running 
 
 ```python -m src.run --dataset [Dataset_Name] --n_epochs [Number_of_Epochs] ```
 
-Change the dataset name and number of epochs accordingly. A complete list of parameters can be found in ```src/run.py```
+Change the dataset name and number of epochs accordingly.
 
-To plot categorical attention weights and save generated code, provide the parameter ```--save_code```
+Before training, the time series are converted to symbolic representations, (i.e. sequences of characters) using 
+[SAX](https://jmotif.github.io/sax-vsm_site/morea/algorithm/SAX.html). Here, you can adjust the number of symbols the 
+representation should have using ```--n_segments``` and the alphabet size using ```--vocab_size```
+
+ A complete list of parameters can be found in ```src/run.py```
+
+To plot categorical attention patterns and the residual stream, provide the parameter ```--visualize_attention```
+
+
 ## Learning Programs
 ### Training
 

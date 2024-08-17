@@ -616,6 +616,7 @@ def get_unique(df):
 
 def get_dataset(
     name,
+    n_segments,
     vocab_size,
     dataset_size=None,
     min_length=4,
@@ -631,7 +632,7 @@ def get_dataset(
     ts_data = sorted([x.name for x in Path(ts_data_dir).glob('*') if x.name != '.DS_Store'])
 
     if name in ts_data:
-        return get_ts_classification_dataset(name, vocab_size)
+        return get_ts_classification_dataset(name, n_segments=n_segments, vocab_size=vocab_size)
     if name.startswith("conll"):
         return get_conll_ner(
             name,

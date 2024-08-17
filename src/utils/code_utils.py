@@ -155,16 +155,21 @@ def visualize_attention(
         one_hot=False,
         var_types=None,
 ):
+    """
+    This method visualizes the attention pattern for a specific head at a specific layer
+    """
     if cat_var_names is None:
         cat_var_names, num_var_names, all_var_names = get_var_names(
             model, idx_w=idx_w, one_hot=one_hot
         )
 
+    # get attention block from model
     attn = model.blocks[layer].cat_attn
     W_pred = attn.W_pred.get_W().detach().cpu().numpy()
     pi_K, pi_Q, pi_V = [
         f.get_W().detach().cpu() for f in (attn.W_K, attn.W_Q, attn.W_V)
     ]
+
     key_names = cat_var_names[pi_K.argmax(-1)]
     query_names = cat_var_names[pi_Q.argmax(-1)]
     val_names = cat_var_names[pi_V.argmax(-1)]
@@ -183,6 +188,7 @@ def visualize_attention(
 
     W_pred = W_pred[h]
 
+    # set x- and y-axis
     if var_types is not None and q in var_types:
         y_ticks = var_types[q]
     else:
@@ -193,6 +199,7 @@ def visualize_attention(
     else:
         x_ticks = list(range(len(W_pred[0])))
 
+    # plot attention pattern as heatmap
     fig, ax = plt.subplots()
     im = ax.imshow(W_pred)
     ax.set_title(f"Layer: {layer}, Head: {h}")
@@ -207,7 +214,9 @@ def visualize_attention(
 def visualize_residual(
         model, example
 ):
-    print(example)
+    """
+    This method plots the residual stream accumulated during model training
+    """
     x = torch.tensor(np.expand_dims(example, axis=0), dtype=torch.int64)
     x = x.to(model.device)
     x_pad_idx = 0
@@ -223,7 +232,7 @@ def visualize_residual(
             x_cat, x_num = block(x_cat, x_num, mask=mask)
 
     arr = x_cat.detach().cpu().numpy().squeeze().T
-    print(arr.shape)
+
     fig, ax = plt.subplots()
     im = ax.imshow(arr)
 
@@ -917,22 +926,12 @@ def model_to_code(
         lines += embed_to_code(
             model.embed, idx_w, one_hot=one_hot, var_types=var_types
         ).split("\n")
-    n_heads = model.blocks[0].cat_attn.W_K.n_heads
+
     n_layers = len(model.blocks)
     n_heads_cat = model.blocks[0].n_heads_cat
 
-    visualize_residual(model, examples)
-
     for l in range(n_layers):
         for h in range(n_heads_cat):
-            visualize_attention(
-                model,
-                layer=l,
-                head=h,
-                idx_w=idx_w if one_hot else None,
-                var_types=var_types,
-                one_hot=one_hot
-            )
             lines += [f"# attn_{l}_{h} " + "#" * 52]
             lines += cat_head_to_code(
                 model,

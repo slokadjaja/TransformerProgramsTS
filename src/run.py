@@ -1,7 +1,3 @@
-# python -m src.run --dataset ArrowHead --n_epochs 400 --n_heads_cat 2 --n_layers 4
-# python -m src.run --dataset ArrowHead --n_epochs 4 --save_code
-        # --one_hot_embed
-
 import argparse
 import copy
 from copy import deepcopy
@@ -22,7 +18,6 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, f1_score
-
 from src.models.transformers import Transformer
 from src.models.programs import (
     TransformerProgramModel,
@@ -44,6 +39,7 @@ def parse_args():
 
     # Data
     parser.add_argument("--dataset", type=str, default="reverse")
+    parser.add_argument("--n_segments", type=int, default=16)
     parser.add_argument("--vocab_size", type=int, default=8)
     parser.add_argument("--dataset_size", type=int, default=-1)
     parser.add_argument("--min_length", type=int, default=1)
@@ -101,6 +97,7 @@ def parse_args():
 
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--save_code", action="store_true")
+    parser.add_argument("--visualize_attention", action="store_true")
 
     parser.add_argument("--device", type=str, default="cpu")
 
@@ -214,10 +211,6 @@ def run_training(
             loss.backward()
             if torch.isnan(loss):
                 m = torch.isnan(losses_lst[-1])
-                # print(losses_lst[-1])
-                # print(m.nonzero())
-                # print(log_probs[m])
-                # print(x[m], tgts[m])
                 raise ValueError("loss is nan")
             if max_grad_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
@@ -507,6 +500,32 @@ def run_program(
         except Exception as e:
             logger.error(f"error saving code: {e}")
 
+    if args.visualize_attention:
+        logger.info(f"Plotting attention maps and residual stream")
+        x = idx_w[X_val[0]]
+        x = x[x != "<pad>"].tolist()
+        try:
+            var_types = code_utils.get_var_types(
+                model, idx_w, one_hot=args.one_hot_embed, enums=False
+            )
+            n_layers = len(model.blocks)
+            n_heads_cat = model.blocks[0].n_heads_cat
+
+            code_utils.visualize_residual(model, X_val[0])
+
+            for l in range(n_layers):
+                for h in range(n_heads_cat):
+                    code_utils.visualize_attention(
+                        model,
+                        layer=l,
+                        head=h,
+                        idx_w=idx_w if args.one_hot_embed else None,
+                        var_types=var_types,
+                        one_hot=args.one_hot_embed
+                    )
+        except Exception as e:
+            logger.error(f"error plotting attention: {e}")
+
     return df
 
 
@@ -597,7 +616,10 @@ def run_standard(
             }
         )
         for k, v in metrics.items():
-            df[k] = v
+            if isinstance(v, np.ndarray):
+                df[k] = np.array2string(v)
+            else:
+                df[k] = v
         dfs.append(df)
     df = pd.concat(dfs).reset_index(drop=True)
 
@@ -627,6 +649,7 @@ def run(args):
         Y_val,
     ) = data_utils.get_dataset(
         name=args.dataset,
+        n_segments=args.n_segments,
         vocab_size=args.vocab_size,
         dataset_size=args.dataset_size,
         min_length=args.min_length,
