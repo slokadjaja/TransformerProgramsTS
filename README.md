@@ -44,9 +44,9 @@ Before training, the time series are converted to symbolic representations, (i.e
 [SAX](https://jmotif.github.io/sax-vsm_site/morea/algorithm/SAX.html). Here, you can adjust the number of symbols the 
 representation should have using ```--n_segments``` and the alphabet size using ```--vocab_size```
 
- A complete list of parameters can be found in ```src/run.py```
-
 To plot categorical attention patterns and the residual stream, provide the parameter ```--visualize_attention```
+
+A complete list of parameters can be found in ```src/run.py```
 
 
 ## Learning Programs
